@@ -1,11 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { supabaseServer, requireUser } from '@/lib/supabase/server';
 import { getActiveOrgId } from '@/lib/db/org';
 import { addDays, formatISO } from 'date-fns';
 
-export async function createOrganizationAction(formData: FormData) {
+export async function createOrganizationAction(formData: FormData): Promise<void> {
   const name = String(formData.get('name') || '').trim();
   if (!name) throw new Error('Org name is required');
 
@@ -32,17 +33,19 @@ export async function createOrganizationAction(formData: FormData) {
   );
 
   revalidatePath('/app');
-  return { orgId: org.id };
+
+  // IMPORTANT: form action must return void/Promise<void>
+  redirect('/app/dashboard');
 }
 
-export async function seedDemoDataAction() {
+export async function seedDemoDataAction(): Promise<void> {
   const user = await requireUser();
   const supabase = supabaseServer();
   const orgId = await getActiveOrgId();
   if (!orgId) throw new Error('NO_ORG');
 
   // Create demo customers
-  const { data: customers, error: cErr } = await supabase
+  const { data: customers } = await supabase
     .from('customers')
     .insert(
       [
@@ -69,7 +72,6 @@ export async function seedDemoDataAction() {
     premium_amount: i === 0 ? 14500 : i === 1 ? 4200 : 8200
   }));
 
-  // Create policies (no need to return rows)
   await supabase.from('policies').insert(policiesPayload).throwOnError();
 
   // Create renewal tasks for policies ending soon
@@ -89,5 +91,6 @@ export async function seedDemoDataAction() {
   });
 
   revalidatePath('/app');
-  return { ok: true };
+  // IMPORTANT: form action must return void/Promise<void>
+  return;
 }

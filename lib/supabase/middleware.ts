@@ -12,15 +12,15 @@ export async function updateSession(request: NextRequest) {
 
   const supabase = createServerClient(url, anonKey, {
     cookies: {
-      get(name) {
+      get(name: string) {
         return request.cookies.get(name)?.value;
       },
-      set(name, value, options) {
+      set(name: string, value: string, options: any) {
         request.cookies.set({ name, value, ...options });
         response = NextResponse.next({ request });
         response.cookies.set({ name, value, ...options });
       },
-      remove(name, options) {
+      remove(name: string, options: any) {
         request.cookies.set({ name, value: '', ...options });
         response = NextResponse.next({ request });
         response.cookies.set({ name, value: '', ...options });

@@ -6,33 +6,43 @@ import { supabaseServer, requireUser } from '@/lib/supabase/server';
 import { getActiveOrgId } from '@/lib/db/org';
 import { addDays, formatISO } from 'date-fns';
 
+
 export async function createOrganizationAction(formData: FormData): Promise<void> {
   const name = String(formData.get('name') || '').trim();
   if (!name) throw new Error('Org name is required');
 
+  // ✅ user auth KORUNUYOR
   const user = await requireUser();
-  const supabase = supabaseServer();
 
-  // create org
-  const { data: org, error: orgError } = await supabase
+  // ✅ admin client (RLS bypass)
+  const admin = supabaseAdmin();
+
+  // 1️⃣ organization
+  const { data: org, error: orgError } = await admin
     .from('organizations')
     .insert({ name, created_by: user.id })
     .select('id')
     .single();
+
   if (orgError) throw orgError;
 
-  // add membership (policy allows owner to insert membership for own org)
-  const { error: memError } = await supabase
+  // 2️⃣ membership
+  const { error: memError } = await admin
     .from('memberships')
     .insert({ org_id: org.id, user_id: user.id, role: 'owner' });
+
   if (memError) throw memError;
 
-  // seed default insurers
-  await supabase.from('insurers').insert(
-    ['Axa', 'Allianz', 'Anadolu Sigorta', 'Sompo', 'Zurich'].map((n) => ({ org_id: org.id, name: n }))
+  // 3️⃣ default insurers
+  await admin.from('insurers').insert(
+    ['Axa', 'Allianz', 'Anadolu Sigorta', 'Sompo', 'Zurich'].map((n) => ({
+      org_id: org.id,
+      name: n
+    }))
   );
 
   revalidatePath('/app');
+}
 
   // IMPORTANT: form action must return void/Promise<void>
   redirect('/app/dashboard');

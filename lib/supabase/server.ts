@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 
 export function supabaseServer() {
   const cookieStore = cookies();
@@ -25,6 +26,17 @@ export function supabaseServer() {
   });
 }
 
+/**
+ * 🔒 Admin client — RLS bypass
+ * SADECE server actions / writes için
+ */
+export function supabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  if (!serviceKey) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+  return createClient(url, serviceKey);
+}
+
 export async function requireUser() {
   const supabase = supabaseServer();
   const { data, error } = await supabase.auth.getUser();
@@ -32,4 +44,4 @@ export async function requireUser() {
     throw new Error('UNAUTHENTICATED');
   }
   return data.user;
-}
+}s
